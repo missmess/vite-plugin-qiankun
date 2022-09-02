@@ -45,8 +45,18 @@ const createImportFinallyResolve = (qiankunName: string) => {
   `
 }
 
+// const createImportLinks = (href: string, rel: string | undefined) => {
+//   return `
+//     let css = document.createElement('link');
+//     css.href = ${href};
+//     css.rel = '${rel}';
+//     document.head.appendChild(css);
+//   `
+// }
+
 export type MicroOption = {
   useDevMode?: boolean
+  urlTransform?: (ori: string) => string;
 }
 type PluginFn = (qiankunName: string, microOption?: MicroOption) => PluginOption;
 
@@ -54,21 +64,43 @@ const htmlPlugin: PluginFn = (qiankunName, microOption = {}) => {
   let isProduction: boolean
   let base = ''
 
-  const module2DynamicImport = ($: CheerioAPI, scriptTag: Element) => {
+  const module2DynamicImport = ($: CheerioAPI, scriptTag: Element | undefined) => {
     if (!scriptTag) {
       return
     }
     const script$ = $(scriptTag)
-    const moduleSrc = script$.attr('src')
+    let moduleSrc = script$.attr('src')
     let appendBase = ''
-    if (microOption.useDevMode && !isProduction) {
-      appendBase = '(window.proxy ? (window.proxy.__INJECTED_PUBLIC_PATH_BY_QIANKUN__ + \'..\') : \'\') + '
-    }
+    // if (microOption.useDevMode && !isProduction) {
+    appendBase = '(window.proxy ? (window.proxy.__INJECTED_PUBLIC_PATH_BY_QIANKUN__ + \'..\') : \'\') + '
+    // }
     script$.removeAttr('src')
     script$.removeAttr('type')
+    if (microOption.urlTransform && moduleSrc) {
+      moduleSrc = microOption.urlTransform(moduleSrc)
+    }
     script$.html(`import(${appendBase}'${moduleSrc}')`)
     return script$
   }
+
+  // const link2DynamicImport = function ($: CheerioAPI, linkTag: Element) {
+  //   if (!linkTag) {
+  //     return
+  //   }
+  //   const link$ = $(linkTag)
+  //   let linkHref = link$.attr('href')
+  //   const linkRel = link$.attr('rel')
+  //   let appendBase = ''
+  //   // if (microOption.useDevMode && !isProduction) {
+  //   appendBase = '(window.proxy ? (window.proxy.__INJECTED_PUBLIC_PATH_BY_QIANKUN__ + \'..\') : \'\') + '
+  //   // }
+  //   link$.attr('href', '')
+  //   if (microOption.urlTransform && linkHref) {
+  //     linkHref = microOption.urlTransform(linkHref)
+  //   }
+  //   link$.parent().append('<script>' + createImportLinks(appendBase + `'${linkHref}'`, linkRel) + '</script>\n')
+  //   return link$
+  // }
 
   return {
     name: 'qiankun-html-transform',
@@ -92,7 +124,7 @@ const htmlPlugin: PluginFn = (qiankunName, microOption = {}) => {
               module2DynamicImport($, $(`script[src=${base}@vite/client]`).get(0))
               htmlStr = $.html()
             }
-            end(htmlStr, ...rest)
+            return end(htmlStr, ...rest)
           }
           next()
         })
@@ -100,6 +132,15 @@ const htmlPlugin: PluginFn = (qiankunName, microOption = {}) => {
     },
     transformIndexHtml (html: string) {
       const $ = cheerio.load(html)
+
+      // const linkTags = $('link')
+      // if (!linkTags || !linkTags.length) {
+      //   return
+      // }
+      // linkTags.each(function (i, linkTag) {
+      //   link2DynamicImport($, linkTag)
+      // })
+
       const moduleTags = $('body script[type=module], head script[crossorigin=""]')
       if (!moduleTags || !moduleTags.length) {
         return

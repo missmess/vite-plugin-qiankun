@@ -11,7 +11,7 @@
     "noFallthroughCasesInSwitch": true,
     "declaration": true,
     "strict": true,
-    "target": "ES5",
+    "target": "ES6",
   },
   "exclude": ["node_modules"],
   "include": ["./src", "type"]
